@@ -208,56 +208,69 @@
 
         let selectedEnCard = null;
         let selectedKoCard = null;
+        let wrongWords = []; // [추가] 틀린 단어를 저장할 배열
 
         function startNewSet() {
             const enCol = document.getElementById('en-col');
             const koCol = document.getElementById('ko-col');
             const status = document.getElementById('status-text');
-            
-            // 초기화
+
             enCol.innerHTML = '';
             koCol.innerHTML = '';
             selectedEnCard = null;
             selectedKoCard = null;
-            status.innerText = `총 ${fullWordList.length}개 단어 중 랜덤 출제 중`;
+        
+            // [수정] 문제 추출 로직
+            let currentBatch = [];
 
-            // 랜덤 5세트 추출
-            const currentBatch = [...fullWordList].sort(() => 0.5 - Math.random()).slice(0, 5);
-            
-            // 왼쪽(영어)과 오른쪽(한글) 리스트를 각각 섞어서 생성
+            // 1. 틀린 단어가 있다면 우선적으로 가져옴 (최대 7개)
+            if (wrongWords.length > 0) {
+                currentBatch = [...wrongWords].slice(0, 5);
+                // 이미 가져온 단어는 오답 노트에서 일단 제거 (맞추면 영구 제거, 또 틀리면 다시 추가됨)
+                wrongWords = wrongWords.slice(currentBatch.length);
+            }
+        
+            // 2. 7개가 안 되면 나머지 부족한 만큼 전체 리스트에서 랜덤하게 채움
+            const needed = 7 - currentBatch.length;
+            if (needed > 0) {
+                const remainingPool = fullWordList.filter(word => !currentBatch.includes(word));
+                const extraWords = remainingPool.sort(() => 0.5 - Math.random()).slice(0, needed);
+                currentBatch = [...currentBatch, ...extraWords];
+            }
+        
+            status.innerText = `남은 오답: ${wrongWords.length}개 | 현재 7개 진행 중`;
+        
+            // 이하 카드 생성 로직은 동일
             const shuffledEn = [...currentBatch].sort(() => 0.5 - Math.random());
             const shuffledKo = [...currentBatch].sort(() => 0.5 - Math.random());
-
+        
             shuffledEn.forEach(item => {
-                const card = createCard(item.en, item.en, 'en');
+                const card = createCard(item.en, item.en, 'en', item); // 원본 객체 전달
                 enCol.appendChild(card);
             });
-
+        
             shuffledKo.forEach(item => {
-                const card = createCard(item.ko, item.en, 'ko'); // 비교를 위해 item.en을 값으로 전달
+                const card = createCard(item.ko, item.en, 'ko', item);
                 koCol.appendChild(card);
             });
         }
 
-        function createCard(text, matchValue, type) {
+        // [수정] createCard 함수에 item 인자 추가
+        function createCard(text, matchValue, type, originalItem) {
             const card = document.createElement('div');
             card.className = 'card';
             card.innerText = text;
-            card.dataset.value = matchValue; // 정답 확인용 내부 값
+            card.dataset.value = matchValue;
             card.dataset.type = type;
-
+            card.originalItem = originalItem; // [추가] 오답 저장을 위해 원본 객체 보관
+        
             card.onclick = function() {
                 if (card.classList.contains('correct')) return;
-
-                // 같은 열에서 이미 선택된 카드 해제
                 const siblingCards = card.parentElement.querySelectorAll('.card');
                 siblingCards.forEach(c => c.classList.remove('selected'));
-
                 card.classList.add('selected');
-
                 if (type === 'en') selectedEnCard = card;
                 else selectedKoCard = card;
-
                 checkMatch();
             };
             return card;
@@ -266,25 +279,32 @@
         function checkMatch() {
             if (selectedEnCard && selectedKoCard) {
                 if (selectedEnCard.dataset.value === selectedKoCard.dataset.value) {
-                    // 정답!
                     selectedEnCard.classList.replace('selected', 'correct');
                     selectedKoCard.classList.replace('selected', 'correct');
                     selectedEnCard = null;
                     selectedKoCard = null;
                 } else {
-                    // 오답
+                    // [수정] 오답 발생 시 틀린 단어 리스트에 추가
+                    const failedWord = selectedEnCard.originalItem;
+                    if (!wrongWords.some(w => w.en === failedWord.en)) {
+                        wrongWords.push(failedWord);
+                    }
+                
                     const cardA = selectedEnCard;
                     const cardB = selectedKoCard;
                     cardA.classList.add('shake');
                     cardB.classList.add('shake');
-                    
+
                     setTimeout(() => {
                         cardA.classList.remove('selected', 'shake');
                         cardB.classList.remove('selected', 'shake');
                     }, 400);
-                    
+
                     selectedEnCard = null;
                     selectedKoCard = null;
+
+                    // 상태 텍스트 업데이트
+                    document.getElementById('status-text').innerText = `남은 오답: ${wrongWords.length}개 | 현재 진행 중`;
                 }
             }
         }
