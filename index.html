@@ -40,7 +40,7 @@
 <body>
     <div class="phone-screen">
         <div class="app-container">
-            <div class="header">짝맞추기 챌린지 (UNIT 01)</div>
+            <div class="header">짝맞추기 챌린지 (UNIT 02)</div>
             <div class="quiz-body">
                 <div class="column" id="en-col"></div>
                 <div class="column" id="ko-col"></div>
@@ -231,14 +231,14 @@
             }
         
             // 2. 7개가 안 되면 나머지 부족한 만큼 전체 리스트에서 랜덤하게 채움
-            const needed = 7 - currentBatch.length;
+            const needed = 5 - currentBatch.length;
             if (needed > 0) {
                 const remainingPool = fullWordList.filter(word => !currentBatch.includes(word));
                 const extraWords = remainingPool.sort(() => 0.5 - Math.random()).slice(0, needed);
                 currentBatch = [...currentBatch, ...extraWords];
             }
         
-            status.innerText = `남은 오답: ${wrongWords.length}개 | 현재 7개 진행 중`;
+            status.innerText = `남은 오답: ${wrongWords.length}개 | 현재 5개 진행 중`;
         
             // 이하 카드 생성 로직은 동일
             const shuffledEn = [...currentBatch].sort(() => 0.5 - Math.random());
